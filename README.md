@@ -1,17 +1,41 @@
-# VPWA
+# Echoo
 
-# Zsófia Gergely a Viktória Kecskés
+> Egy Slack/Discordhoz hasonló chataplikáció szimulálása
 
-# 1. fáza: 
-Kliknuteľný prototyp (SPA): v priečinku Prototyp
+## About
 
-Dátový model: v priečinku Dokumentacia -> Dátové modely -> 1_faza
+Echoo is an ongoing project that originated as a university project at the Faculty of Informatics and Information Technologies in Bratislava.
 
-# 2. fáza:
-Celá aplikácia (PWA frontend + backend): v priečinku Echoo
+The project aims to simulate a chat application similar to Slack or Discord. Both the frontend and backend are still under active development, and new features are being added continuously.
 
-Dátový model: v priečinku Dokumentacia -> Dátové modely -> 2_faza
+The full application (PWA frontend + backend) can be found in the `Echoo` folder.
 
-Diagramy architektúry aplikácie: v priečinku Dokumentacia -> Diagramy architektúry aplikácie
+## Tech Stack
 
-Dokumentácia: v priečinku Dokumentácia (+ tu nájdite aj Používateľskú príručku keby to potrebujete)
+| Layer | Technology |
+|---|---|
+| Backend | AdonisJS 6 (Node.js), TypeScript, Socket.io |
+| Frontend | Vue 3, Quasar Framework v2 (PWA), TypeScript, Socket.io-client |
+| Database | PostgreSQL 15 |
+
+## Project Structure
+
+├── Echoo/                        # Main application (PWA + backend)
+│   ├── backend/                  # AdonisJS REST API + WebSocket server
+│   └── frontend/                 # Quasar PWA frontend
+└── Original projekt/             # Some original parts of the university project (in Slovak)
+    ├── Dokumentacia/             # Data models, architecture diagrams, user guide
+    ├── Prototyp/                 # Clickable prototype (SPA) – Phase 1
+    └── Sketch/                   # Original UI sketches
+
+## Project Status
+
+🚧 Work in Progress
+
+The application is actively being developed. Features, data models, and user interface elements may change over time.
+
+## Contributors
+
+The project is being developed by:
+- [Zsófia Gergely](https://github.com/VitaWeyden) – Full-Stack Development
+- [Viktória Kecskés](https://github.com/xkecskesv) – Full-Stack Development

@@ -3,6 +3,7 @@ import server from '@adonisjs/core/services/server'
 import Message from '#models/message'
 import MessageMention from '#models/message_mention'
 import User from '#models/user'
+import CommandLog from '#models/command_log'
 import { DateTime } from 'luxon'
 
 class Ws {
@@ -166,6 +167,65 @@ class Ws {
           socket.emit('error', { message: 'Message cannot be sent' })
         }
       })
+
+      // Príkaz (napr. /kick, /ban, /join, ...), ktorý používateľ zadal do chatu.
+      // Vždy sa zaloguje do command_logs (audit trail) a voliteľne sa zobrazí
+      // ako systémová správa v chate všetkým členom kanála.
+      socket.on(
+        'command',
+        async (data: {
+          channelId: number
+          userId: number
+          command: string
+          args?: string
+          success?: boolean
+          resultText?: string
+          showInChat?: boolean
+        }) => {
+          const { channelId, userId, command, args, success = true, resultText, showInChat = true } = data
+
+          try {
+            // 1) Audit log - vždy sa uloží, nezávisle od toho, či zlyhal alebo nie
+            await CommandLog.create({
+              channelId,
+              userId,
+              command,
+              args: args || null,
+              success,
+            })
+
+            // 2) Voliteľne systémová správa viditeľná pre všetkých v kanáli
+            if (showInChat && resultText) {
+              const message = await Message.create({
+                channelId,
+                senderId: userId,
+                content: resultText,
+                hasPing: false,
+                isCommand: true,
+                sentAt: DateTime.now(),
+              })
+
+              await message.load('sender')
+
+              const messagePayload = {
+                id: message.id,
+                text: message.content,
+                userId: message.senderId,
+                user: message.sender.nickName,
+                channelId,
+                sentAt: message.sentAt,
+                isPing: false,
+                isCommand: true,
+                mentionedUserIds: [],
+              }
+
+              this.io?.to(`channel_${channelId}`).emit('newMessage', messagePayload)
+            }
+          } catch (error) {
+            console.error('[WS] Command logging error:', error)
+          }
+        }
+      )
 
       // socket.on('disconnect', () => {
       //   console.log(`[WS] Client disconnected: ${socket.id}`)

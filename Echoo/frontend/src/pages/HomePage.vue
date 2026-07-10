@@ -50,7 +50,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, getCurrentInstance } from 'vue'
 import { useQuasar } from 'quasar'
 import { useChannelCommands } from 'src/composables/useChannelCommands'
 import { useRouter } from 'vue-router'
@@ -58,6 +58,8 @@ import type { Ref } from 'vue'
 import type { UserChannel, Message } from '@/types'
 
 const $q = useQuasar()
+const instance = getCurrentInstance()
+const socket = instance!.appContext.config.globalProperties.$socket
 const router = useRouter()
 
 // Inject potrebných dát z ChatLayout
@@ -83,7 +85,8 @@ const { handleCommand } = useChannelCommands(
   currentUserId,
   handleChannelLeft,
   $q,
-  router
+  router,
+  socket
 )
 
 const joinCommand = ref('')

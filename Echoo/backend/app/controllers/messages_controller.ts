@@ -58,6 +58,7 @@ export default class MessagesController {
       user: msg.sender.nickName,
       text: msg.content,
       mentionedUserIds: msg.mentions.map((m) => m.mentionedUserId),
+      isCommand: msg.isCommand,
     }))
 
     return result

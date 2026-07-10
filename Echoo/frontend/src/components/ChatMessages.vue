@@ -21,7 +21,16 @@
 
       <!-- Zoznam správ -->
       <div v-for="msg in localMessages" :key="msg.id" class="q-mb-md message-wrapper">
+        <!-- Systémová správa (výsledok príkazu, napr. /kick, /ban, /join...) -->
+        <div v-if="msg.isCommand" class="row justify-center">
+          <div class="command-message q-px-md q-py-xs">
+            {{ msg.text }}
+          </div>
+        </div>
+
+        <!-- Bežná chatová správa -->
         <div
+          v-else
           class="message-container"
           :class="{ 'my-message': currentUserId === msg.userId }"
         >
@@ -411,6 +420,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.command-message {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #b0b0b0;
+  font-size: 0.85rem;
+  font-style: italic;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 80%;
+}
+
 /* Zvýraznenie mention (modré) */
 .message-content :deep(.ping-highlight) {
   color: #00aff4 !important;

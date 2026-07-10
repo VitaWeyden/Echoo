@@ -11,7 +11,7 @@ export default class Message extends BaseModel {
   @column() declare senderId: number
   @column() declare content: string
   @column() declare hasPing: boolean
-  // @column() declare hasCommand: boolean
+  @column() declare isCommand: boolean
   @column.dateTime() declare sentAt: DateTime
   @column.dateTime({ autoCreate: true }) declare createdAt: DateTime
   @column.dateTime({ autoCreate: true, autoUpdate: true }) declare updatedAt: DateTime

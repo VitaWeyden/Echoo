@@ -52,12 +52,67 @@ def check_prerequisites():
     return ok
 
 # ── .env setup ────────────────────────────────────────────────────────────────
+REQUIRED_KEYS = ["APP_KEY", "DB_PASSWORD"]
+
+def read_env(path):
+    """Parse a .env file into a dict (ignores comments/blank lines)."""
+    values = {}
+    with open(path) as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, _, value = stripped.partition("=")
+            values[key.strip()] = value.strip()
+    return values
+
 def setup_env():
     env_file     = ".env"
     env_example  = ".env.example"
 
     if os.path.exists(env_file):
-        success(".env already exists, skipping setup")
+        existing = read_env(env_file)
+        missing = [k for k in REQUIRED_KEYS if not existing.get(k)]
+
+        if not missing:
+            success(".env already exists, skipping setup")
+            return True
+
+        warn(f".env exists but is missing/empty: {', '.join(missing)} – filling in the gaps")
+
+        with open(env_file) as f:
+            lines = f.readlines()
+
+        fill_values = {}
+        if "APP_KEY" in missing:
+            fill_values["APP_KEY"] = generate_app_key()
+            info("APP_KEY generated automatically")
+        if "DB_PASSWORD" in missing:
+            db_password = input(f"{CYAN}[?]{RESET} Enter a PostgreSQL password for the DB: ").strip()
+            if not db_password:
+                error("DB_PASSWORD cannot be empty")
+                return False
+            fill_values["DB_PASSWORD"] = db_password
+
+        found_keys = set()
+        with open(env_file, "w") as f:
+            for line in lines:
+                stripped = line.strip()
+                if stripped.startswith("#") or not stripped or "=" not in stripped:
+                    f.write(line)
+                    continue
+                key = stripped.split("=")[0].strip()
+                if key in fill_values:
+                    f.write(f"{key}={fill_values[key]}\n")
+                    found_keys.add(key)
+                else:
+                    f.write(line)
+            # Anything still missing (key wasn't even present as a line) gets appended
+            for key, value in fill_values.items():
+                if key not in found_keys:
+                    f.write(f"{key}={value}\n")
+
+        success(".env updated with the missing values")
         return True
 
     if not os.path.exists(env_example):

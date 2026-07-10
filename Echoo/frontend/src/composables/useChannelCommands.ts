@@ -3,6 +3,7 @@ import type { Ref } from 'vue'
 import type { UserChannel, AppUser, KickResponse, Channel, ChannelResponse, Message } from '@/types'
 import type { QVueGlobals } from 'quasar'
 import type { Router } from 'vue-router'
+import type io from 'socket.io-client'
 import API_URL from '../config/api'
 
 // const API_URL = 'http://localhost:3333'
@@ -17,8 +18,42 @@ export function useChannelCommands(
   currentUserId: Ref<number | null>,
   handleChannelLeft: (channelId: number) => void,
   $q: QVueGlobals,
-  router: Router
+  router: Router,
+  socket?: ReturnType<typeof io>
 ) {
+
+  // Prezývka aktuálne prihláseného používateľa (pre systémové správy typu "X kicked Y")
+  function getCurrentNickName(): string {
+    try {
+      const saved = localStorage.getItem('user')
+      if (!saved) return 'Someone'
+      const parsed = JSON.parse(saved) as { nickName?: string }
+      return parsed.nickName || 'Someone'
+    } catch {
+      return 'Someone'
+    }
+  }
+
+  // Zaloguje vykonaný príkaz na backend (audit trail v command_logs)
+  // a voliteľne ho zobrazí ako systémovú správu všetkým v kanáli.
+  function logCommand(
+    channelId: number | null,
+    command: string,
+    args: string,
+    options: { success?: boolean; resultText?: string; showInChat?: boolean } = {}
+  ) {
+    if (!socket || !channelId || !currentUserId.value) return
+
+    socket.emit('command', {
+      channelId,
+      userId: currentUserId.value,
+      command,
+      args,
+      success: options.success ?? true,
+      resultText: options.resultText,
+      showInChat: options.showInChat ?? true,
+    })
+  }
 
   // Command handlers - upravené na používanie existujúcich endpointov
   async function handleCancelCommand() {
@@ -41,6 +76,11 @@ export function useChannelCommands(
 
     try {
       if (isAdmin) {
+        // Zaloguj ešte pred zmazaním kanála (FK cascade by inak zmazal aj samotný log/správu)
+        logCommand(channelId, '/cancel', '', {
+          resultText: `🗑️ ${getCurrentNickName()} deleted the channel "${channel.name}"`
+        })
+
         // Admin vymaže celý kanál
         await axios.delete(`${API_URL}/channels/${channelId}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -60,6 +100,10 @@ export function useChannelCommands(
         })
 
         handleChannelLeft(channelId)
+
+        logCommand(channelId, '/cancel', '', {
+          resultText: `👋 ${getCurrentNickName()} left the channel "${channel.name}"`
+        })
 
         $q.notify({
           type: 'positive',
@@ -127,11 +171,17 @@ export function useChannelCommands(
       if (channel.role === 'admin') { // Admin → BAN
       endpoint = `${API_URL}/channels/${channelId}/ban/${targetUser.id}`
       const res = await axios.delete<KickResponse>(endpoint, { headers: { Authorization: `Bearer ${token}` } })
+      logCommand(channelId, '/kick', targetName, {
+        resultText: `🔨 ${getCurrentNickName()} banned ${targetName} from the channel`
+      })
       $q.notify({ type: 'positive', message: res.data.message || `User "${targetName}" has been banned` })
 
       } else { // Member → KICK
       endpoint = `${API_URL}/channels/${channelId}/kick/${targetUser.id}`
       const res = await axios.delete<KickResponse>(endpoint, { headers: { Authorization: `Bearer ${token}` } })
+      logCommand(channelId, '/kick', targetName, {
+        resultText: `👢 ${getCurrentNickName()} kicked ${targetName} from the channel`
+      })
       $q.notify({ type: 'positive', message: res.data.message })
       }
 
@@ -216,6 +266,10 @@ export function useChannelCommands(
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
+      logCommand(channelId, '/invite', targetName, {
+        resultText: `✉️ ${getCurrentNickName()} invited ${targetName} to the channel`
+      })
+
       $q.notify({
         type: 'positive',
         message: `Invite sent to "${targetName}"`
@@ -279,6 +333,10 @@ export function useChannelCommands(
         { headers: { Authorization: `Bearer ${token}` } }
       )
 
+      logCommand(channelId, '/ban', targetName, {
+        resultText: `🔨 ${getCurrentNickName()} banned ${targetName} from the channel`
+      })
+
       $q.notify({ type: 'positive', message: `${targetName} banned from channel` })
     } catch (err) {
       console.error(err)
@@ -308,6 +366,8 @@ export function useChannelCommands(
       const formatted = members
         .map(m => `• ${m.nickName} (${m.role})`)
         .join('<br>')
+
+      logCommand(currentChannelId.value, '/list', '', { showInChat: false })
 
       $q.notify({
         message: `Members:<br>${formatted}`,
@@ -356,6 +416,11 @@ export function useChannelCommands(
     const token = localStorage.getItem('auth_token')
 
     try {
+      // Zaloguj ešte pred zmazaním kanála (FK cascade by inak zmazal aj samotný log/správu)
+      logCommand(channelId, '/quit', '', {
+        resultText: `🗑️ ${getCurrentNickName()} deleted the channel "${channel.name}"`
+      })
+
       // Vymazanie kanála
       await axios.delete(`${API_URL}/channels/${channelId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -433,6 +498,10 @@ export function useChannelCommands(
         `${API_URL}/channels/${channelId}/ban/${targetUser.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       )
+
+      logCommand(channelId, '/revoke', targetName, {
+        resultText: `🚫 ${getCurrentNickName()} revoked ${targetName} from the channel`
+      })
 
       $q.notify({ type: 'positive', message: `${targetName} removed from channel` })
 
@@ -524,6 +593,12 @@ export function useChannelCommands(
           }
         }
 
+        if (!alreadyJoined) {
+          logCommand(channelId, '/join', channelName, {
+            resultText: `🚪 ${getCurrentNickName()} joined the channel "${channelName}"`
+          })
+        }
+
         $q.notify({
           type: alreadyJoined ? 'info' : 'positive',
           message: alreadyJoined
@@ -568,6 +643,10 @@ export function useChannelCommands(
         if (isPrivate) privateChannels.value.push(newChannel)
         else publicChannels.value.push(newChannel)
 
+        logCommand(channelId, '/join', channelName, {
+          resultText: `✨ ${getCurrentNickName()} created the channel "${channelName}"`
+        })
+
         $q.notify({
           type: 'positive',
           message: `Channel "${channelName}" created!`
@@ -609,6 +688,10 @@ export function useChannelCommands(
     } else if (command === '/list') {
       await handleListCommand()
     } else {
+      logCommand(currentChannelId.value, command ?? 'unknown', parts.slice(1).join(' '), {
+        success: false,
+        showInChat: false
+      })
       $q.notify({ type: 'warning', message: 'Unknown command' })
     }
   }

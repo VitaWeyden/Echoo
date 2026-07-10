@@ -206,7 +206,8 @@ const { handleCommand } = useChannelCommands(
   currentUserId,
   handleChannelLeft,
   $q,
-  router
+  router,
+  socket
 )
 
 // Computed properties

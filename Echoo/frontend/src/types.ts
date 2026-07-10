@@ -44,6 +44,7 @@ export interface Message {
   text: string
   channelId: number
   isPing?: boolean
+  isCommand?: boolean
   mentionedUserIds?: number[]
 }
 

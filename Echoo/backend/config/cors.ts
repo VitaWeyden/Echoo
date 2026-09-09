@@ -1,5 +1,15 @@
 import { defineConfig } from '@adonisjs/cors'
 
+// Any additional origins to allow beyond localhost and private networks -
+// e.g. a public cloud VM's IP, which isn't in any RFC 1918 private range
+// and so wouldn't otherwise match anything below. Comma-separated, exact
+// origin strings (scheme + host + port), e.g.:
+//   ALLOWED_ORIGINS=http://34.118.124.149:8111,http://34.118.124.149:8110
+const extraAllowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
 const corsConfig = defineConfig({
   enabled: true,
 
@@ -7,6 +17,10 @@ const corsConfig = defineConfig({
   origin: (origin) => {
     // Ak nie je origin (napríklad Postman alebo priame volanie), povolíme ho
     if (!origin) return true
+
+    if (extraAllowedOrigins.includes(origin)) {
+      return true
+    }
 
     try {
       const url = new URL(origin)

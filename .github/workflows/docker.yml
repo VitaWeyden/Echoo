@@ -40,7 +40,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/echoo-backend
-          tags: type=raw,value=latest
+          tags: |
+            type=raw,value=latest
+            type=raw,value=v0.0.${{ github.run_number }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -83,7 +85,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ steps.owner.outputs.name }}/echoo-frontend
-          tags: type=raw,value=latest
+          tags: |
+            type=raw,value=latest
+            type=raw,value=v0.0.${{ github.run_number }}
 
       - name: Build and push
         uses: docker/build-push-action@v5

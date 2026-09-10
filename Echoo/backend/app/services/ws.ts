@@ -14,12 +14,25 @@ class Ws {
     if (this.booted) return
     this.booted = true
 
+    // Any additional origins to allow beyond localhost and private networks
+    // - e.g. a public cloud VM's IP. Same mechanism as backend/config/cors.ts;
+    // duplicated here because Socket.IO's CORS check is entirely separate
+    // from AdonisJS's own HTTP CORS middleware. See TROUBLESHOOTING.md #16.
+    const extraAllowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
+
     // Inicializácia Socket.IO servera s vlastným CORS callbackom
     this.io = new Server(server.getNodeServer(), {
       cors: {
         // Rovnaké nastavenie ako pri HTTP CORS, len bez callbacku
         origin: (origin, callback) => {
           if (!origin) return callback(null, true)
+
+          if (extraAllowedOrigins.includes(origin)) {
+            return callback(null, true)
+          }
 
           try {
             const url = new URL(origin)
